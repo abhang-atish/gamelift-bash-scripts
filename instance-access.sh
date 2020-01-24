@@ -1,8 +1,8 @@
 #!/bin/bash
 
-machine=
 fleet_id=
 fleet_os=
+fleet_name=
 instances=
 declare -a instance_list=()
 
@@ -18,6 +18,8 @@ done
 fleet_id=$_fleet
 
 instances=$(aws gamelift describe-instances --fleet-id $fleet_id --query 'Instances')
+fleet_name=$(aws gamelift describe-fleet-attributes --fleet-id $fleet_id --query 'FleetAttributes[0].Name')
+echo "Fleet $fleet_name is in" $(aws gamelift describe-fleet-attributes --fleet-id $fleet_id --query 'FleetAttributes[0].Status') "State"
 fleet_os=$(echo "${instances}" | jq '.[0].OperatingSystem' | sed -e 's/^"//' -e 's/"$//')
 instance_ids=$(echo "${instances}" | jq -c '.[].InstanceId')
 
@@ -25,17 +27,19 @@ for i in $instance_ids; do
 	instance_list[${#instance_list[@]}]=$i
 done
 
-clear
+# clear
 
 # Creates a RDP file.
 WinRDP() {
+	mkdir -p $fleet_name/$fleet_id/
+
 	instance_id=$(sed -e 's/^"//' -e 's/"$//' <<<$1)
 
 	ip_address=$(aws gamelift get-instance-access --fleet-id $fleet_id --instance-id $instance_id --query 'InstanceAccess.IpAddress')
 	ip_address=$(sed -e 's/^"//' -e 's/"$//' <<<$ip_address)
 
 	echo "screen mode id:i:2
-	use multimon:i:1
+	use multimon:i:0
 	session bpp:i:24
 	full address:s:$ip_address
 	audiomode:i:0
@@ -43,7 +47,7 @@ WinRDP() {
 	disable wallpaper:i:0
 	disable full window drag:i:0
 	disable menu anims:i:0
-	disable themes:i:0
+	disable themes:i:1
 	alternate shell:s:
 	shell working directory:s:
 	authentication level:i:2
@@ -58,12 +62,12 @@ WinRDP() {
 	autoreconnection enabled:i:1
 	bookmarktype:i:3
 	use redirection server name:i:0
-	authoring tool:s:rdmac" | tee $instance_id.rdp
+	authoring tool:s:rdmac" | tee $fleet_name/$fleet_id/$instance_id.rdp
 
 	clear
 
 	password=$(aws gamelift get-instance-access --fleet-id $fleet_id --instance-id $instance_id --query 'InstanceAccess.Credentials.Secret')
-	
+
 	echo "Fleet instances have windows OS, check for a RDP file in script folder."
 	echo password: $password
 }
