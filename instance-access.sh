@@ -22,7 +22,7 @@ fleet_name=$(aws gamelift describe-fleet-attributes --fleet-id $fleet_id --query
 echo "Fleet $fleet_name is in" $(aws gamelift describe-fleet-attributes --fleet-id $fleet_id --query 'FleetAttributes[0].Status') "State"
 fleet_os=$(echo "${instances}" | jq '.[0].OperatingSystem' | sed -e 's/^"//' -e 's/"$//')
 instance_ids=$(echo "${instances}" | jq -c '.[].InstanceId')
-
+fleet_name=$(tr -s ' ' '_' <<< $fleet_name)
 for i in $instance_ids; do
 	instance_list[${#instance_list[@]}]=$i
 done
@@ -38,31 +38,50 @@ WinRDP() {
 	ip_address=$(aws gamelift get-instance-access --fleet-id $fleet_id --instance-id $instance_id --query 'InstanceAccess.IpAddress')
 	ip_address=$(sed -e 's/^"//' -e 's/"$//' <<<$ip_address)
 
-	echo "screen mode id:i:2
-	use multimon:i:0
-	session bpp:i:24
-	full address:s:$ip_address
-	audiomode:i:0
-	username:s:gl-user-remote
-	disable wallpaper:i:0
-	disable full window drag:i:0
-	disable menu anims:i:0
-	disable themes:i:1
-	alternate shell:s:
-	shell working directory:s:
-	authentication level:i:2
-	connect to console:i:0
-	redirectclipboard:i:1
-	gatewayusagemethod:i:0
-	disable cursor setting:i:0
-	allow font smoothing:i:1
-	allow desktop composition:i:1
-	redirectprinters:i:0
-	prompt for credentials on client:i:1
-	autoreconnection enabled:i:1
-	bookmarktype:i:3
-	use redirection server name:i:0
-	authoring tool:s:rdmac" | tee $fleet_name/$fleet_id/$instance_id.rdp
+	echo "remoteapplicationappid:s:
+wvd endpoint pool:s:
+gatewaybrokeringtype:i:0
+use redirection server name:i:0
+alternate shell:s:
+disable themes:i:0
+disable cursor setting:i:0
+resourceprovider:s:
+disable menu anims:i:1
+remoteapplicationcmdline:s:
+redirected video capture encoding quality:i:0
+promptcredentialonce:i:0
+audiocapturemode:i:0
+prompt for credentials on client:i:0
+gatewayhostname:s:
+remoteapplicationprogram:s:
+gatewayusagemethod:i:2
+screen mode id:i:2
+use multimon:i:0
+authentication level:i:2
+desktopwidth:i:0
+desktopheight:i:0
+redirectsmartcards:i:0
+redirectclipboard:i:1
+full address:s:$ip_address
+drivestoredirect:s:
+loadbalanceinfo:s:
+enablecredsspsupport:i:1
+redirectprinters:i:0
+autoreconnection enabled:i:1
+session bpp:i:32
+administrative session:i:0
+authoring tool:s:
+remoteapplicationmode:i:0
+disable full window drag:i:1
+gatewayusername:s:
+shell working directory:s:
+audiomode:i:0
+username:s:gl-user-remote
+allow font smoothing:i:1
+connect to console:i:0
+camerastoredirect:s:
+disable wallpaper:i:0
+gatewayaccesstoken:s:" | tee $fleet_name/$fleet_id/$instance_id.rdp
 
 	clear
 
@@ -70,6 +89,8 @@ WinRDP() {
 
 	echo "Fleet instances have windows OS, check for a RDP file in script folder."
 	echo password: $password
+	echo "password copied to clipboard"
+	echo $(sed -e 's/^"//' -e 's/"$//' <<<$password) | pbcopy
 }
 # Creates a .pem file and SSH to the instance.
 LinuxSSH() {
